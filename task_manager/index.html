@@ -34,12 +34,17 @@
             color: #333;
         }
 
+        .input-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+
         input[type="text"] {
-            width: calc(100% - 60px);
+            flex: 1;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
-            border-radius: 8px;
+            border-radius: 8px 0 0 8px;
             outline: none;
             transition: border-color 0.3s ease;
         }
@@ -54,10 +59,9 @@
             color: #fff;
             font-size: 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 0 8px 8px 0;
             cursor: pointer;
             transition: background-color 0.3s ease;
-            margin-left: 10px;
         }
 
         button:hover {
@@ -85,7 +89,14 @@
             background-color: #f1f1f1;
         }
 
-        .delete-btn, .edit-btn, .save-btn {
+        .task-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .delete-btn,
+        .edit-btn,
+        .save-btn {
             background-color: #ff4d4d;
             color: white;
             border: none;
@@ -103,8 +114,23 @@
             background-color: #FFC107;
         }
 
+        .edit-btn:hover {
+            background-color: #e0a800;
+        }
+
         .save-btn {
             background-color: #28a745;
+        }
+
+        .save-btn:hover {
+            background-color: #218838;
+        }
+
+        .no-tasks {
+            text-align: center;
+            color: #666;
+            margin-top: 20px;
+            font-size: 18px;
         }
     </style>
 </head>
@@ -112,7 +138,7 @@
 <body>
     <div class="container">
         <h1>Task Manager</h1>
-        <div style="display: flex;">
+        <div class="input-container">
             <input type="text" id="taskInput" placeholder="Add a new task">
             <button onclick="addTask()">Add Task</button>
         </div>
@@ -126,37 +152,54 @@
             const tasks = await response.json();
             const taskList = document.getElementById('taskList');
             taskList.innerHTML = '';
-            tasks.forEach(task => {
-                const li = document.createElement('li');
-                
-                const span = document.createElement('span');
-                span.textContent = task.description;
 
-                // Edit and Save Buttons
-                const editButton = document.createElement('button');
-                editButton.textContent = 'Edit';
-                editButton.classList.add('edit-btn');
-                editButton.onclick = () => editTask(task.id, span, editButton);
+            if (tasks.length === 0) {
+                const noTasksMsg = document.createElement('li');
+                noTasksMsg.className = 'no-tasks';
+                noTasksMsg.textContent = 'No tasks available. Add a new task!';
+                taskList.appendChild(noTasksMsg);
+            } else {
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
 
-                // Delete Button
-                const deleteButton = document.createElement('button');
-                deleteButton.textContent = 'Delete';
-                deleteButton.classList.add('delete-btn');
-                deleteButton.onclick = async () => {
-                    await fetch(`/tasks/${task.id}`, { method: 'DELETE' });
-                    fetchTasks();
-                };
+                    const span = document.createElement('span');
+                    span.textContent = task.description;
 
-                li.appendChild(span);
-                li.appendChild(editButton);
-                li.appendChild(deleteButton);
-                taskList.appendChild(li);
-            });
+                    const taskActions = document.createElement('div');
+                    taskActions.className = 'task-actions';
+
+                    // Edit Button
+                    const editButton = document.createElement('button');
+                    editButton.textContent = 'Edit';
+                    editButton.classList.add('edit-btn');
+                    editButton.onclick = () => editTask(task.id, span, editButton);
+
+                    // Delete Button
+                    const deleteButton = document.createElement('button');
+                    deleteButton.textContent = 'Delete';
+                    deleteButton.classList.add('delete-btn');
+                    deleteButton.onclick = async () => {
+                        await fetch(`/tasks/${task.id}`, { method: 'DELETE' });
+                        fetchTasks();
+                    };
+
+                    taskActions.appendChild(editButton);
+                    taskActions.appendChild(deleteButton);
+                    li.appendChild(span);
+                    li.appendChild(taskActions);
+                    taskList.appendChild(li);
+                });
+            }
         }
 
         // Add a new task
         async function addTask() {
             const taskInput = document.getElementById('taskInput');
+            if (taskInput.value.trim() === '') {
+                alert('Task description cannot be empty!');
+                return;
+            }
+
             const task = { description: taskInput.value };
             await fetch('/tasks', {
                 method: 'POST',
@@ -169,19 +212,21 @@
 
         // Edit an existing task
         function editTask(id, span, editButton) {
-            // Replace span with input
             const input = document.createElement('input');
             input.type = 'text';
             input.value = span.textContent;
             span.replaceWith(input);
 
-            // Change Edit Button to Save Button
             editButton.textContent = 'Save';
             editButton.classList.remove('edit-btn');
             editButton.classList.add('save-btn');
 
-            // Update task on save
             editButton.onclick = async () => {
+                if (input.value.trim() === '') {
+                    alert('Task description cannot be empty!');
+                    return;
+                }
+
                 const updatedTask = { description: input.value };
                 await fetch(`/tasks/${id}`, {
                     method: 'PUT',
